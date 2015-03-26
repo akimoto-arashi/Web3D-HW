@@ -1,0 +1,249 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+	body {
+		background-color: #fff;
+		color: #111;
+		margin: 0px;
+		overflow: hidden;
+		font-family: Monospace;
+		font-size: 20px;
+		position: absolute;
+	}
+	#info {
+		position: absolute;
+		top: 0px; width: 100%;
+		
+		padding: 5px;
+		text-align: center;
+		color: #ffff00
+	}
+	strong {color:red}
+</style>
+</head>
+
+<body> 
+
+<div id="container"></div>
+<div id="info">
+    Web3D HW2 <br/>
+	select 
+	<a href="javascript:toggle();">stat</a>
+	<br/>
+	or type <strong>z</strong> to toggle open/close
+</div>
+
+<audio id="open" style="display:none">
+<source src="src/sounds/Opendoor.WAV" type='audio/wav'>
+</audio>
+
+<audio id="close" style="display:none">
+<source src="src/sounds/Closedoor.WAV" type='audio/wav'>
+</audio>
+
+<script src="src/js/r69/three.min.js"></script>
+<script src="src/js/OrbitControls.js"></script>
+<script src="src/js/KeyboardState.js"></script>
+
+<script>
+////////////////////////////////////////////////////
+// global var's
+var clock = new THREE.Clock();
+var scene, renderer, camera;
+var controls, keyboard = new KeyboardState();
+
+var pin_u,pin_d;
+var door_frame_u,door_frame_l;
+var door;
+
+var angle = 0;
+var turn = false;
+var stat = false;
+
+init();
+animate();
+
+function toggle () 
+{
+	turn = !turn;
+}
+
+function init()
+{
+	var width = window.innerWidth;
+	var height = window.innerHeight;
+
+	open = document.getElementById ('open');
+	close = document.getElementById ('close');
+	
+	renderer = new THREE.WebGLRenderer({antialias: true});
+	renderer.setSize (width, height);
+	document.body.appendChild (renderer.domElement);
+
+	scene = new THREE.Scene();
+
+	camera = new THREE.PerspectiveCamera (45, width/height, 0.1, 10000000);
+	camera.position.y = 160;
+	camera.position.z = 400;
+	camera.lookAt (new THREE.Vector3(0,0,0));
+	/////////////////////////////////////////////////////////////////////////////////////////
+    door_frame_l = createMesh(new THREE.BoxGeometry(2,32,2), "src/textures/wood_texture.jpg", "src/textures/wood_texture-bm.jpg");
+	door_frame_u = createMesh(new THREE.BoxGeometry(24,2,2), "src/textures/wood_texture.jpg", "src/textures/wood_texture-bm.jpg");
+	var door_frame_r = door_frame_l.clone();
+	var door_frame_d = door_frame_u.clone();
+	
+	var hdlTexture = new THREE.ImageUtils.loadTexture ('src/textures/bg-gold.jpg');
+	var hdlMaterial = new THREE.MeshBasicMaterial ({map: hdlTexture});
+	
+	handle_f = new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.5,3,32),hdlMaterial);
+	var handle_b = handle_f.clone();
+	
+	handlep_u = new THREE.Mesh(new THREE.BoxGeometry(0.5,0.5,4),hdlMaterial);
+	var handlep_d = handlep_u.clone();
+	
+	var pinMaterial = new THREE.MeshBasicMaterial ({color: 0xffc914, wireframe:false});
+	pin_u = new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.1,3,32),pinMaterial);
+	pin_d = pin_u.clone();
+	
+	door_frame_d.position.set(12,1,0);
+	door_frame_u.position.set(12,33,0);
+	door_frame_l.position.set(1,17,0);
+	door_frame_r.position.set(23,17,0);
+	//////////////////////////////////
+	door = new THREE.Object3D();
+	var doormesh = createMesh(new THREE.BoxGeometry(20,30,2), "src/textures/wood_texture.jpg", "src/textures/wood_texture-bm.jpg");
+	door.add (doormesh);
+	door.position.set(22,17,1);
+	doormesh.translateOnAxis (new THREE.Vector3(-1,0,0),10 );
+	doormesh.translateOnAxis (new THREE.Vector3(0,0,1),-1);
+	scene.add (door);
+	//////////////////////////////////
+	pin_u.position.set(0,10,0);
+	pin_d.position.set(0,-6,0);
+	handle_f.position.set(-19,0,1);
+	handle_b.position.set(-19,0,-3);
+	handlep_u.position.set(-19,0.5,-1);
+	handlep_d.position.set(-19,-0.5,-1);
+	
+	var doorFrame = new THREE.Object3D();
+		doorFrame.add(door_frame_u);
+		doorFrame.add(door_frame_d);
+		doorFrame.add(door_frame_l);
+		doorFrame.add(door_frame_r);
+		door.add(pin_u);
+		door.add(pin_d);
+		door.add(handle_b);
+		door.add(handle_f);
+		door.add(handlep_d);
+		door.add(handlep_u);
+	scene.add(doorFrame);
+	/////////////////////////////////////////////////////////////////////////////////////////
+	
+	
+	// add control here (after the camera is defined)
+	controls = new THREE.OrbitControls (camera, render.domElement);
+
+	var gridXZ = new THREE.GridHelper(100, 10);
+	gridXZ.setColors( new THREE.Color(0xff0000), new THREE.Color(0xffffff) );
+	scene.add(gridXZ);
+	
+	/*var pointLight = new THREE.PointLight (0xffffff);
+	pointLight.position.set (0,300,200);
+	scene.add (pointLight);*/
+
+	var spotLight = new THREE.AmbientLight (0xffffff);
+	scene.add(spotLight);
+	
+	window.addEventListener ('resize', onWindowResize, false);	
+	
+}
+
+function animate()
+{
+	//var dt = 6*clock.getDelta()/180*3.1416;
+	//var angle = 0;
+	
+	if(turn){
+		if( turn && !stat && angle < 90/180*Math.PI){
+			angle += 0.01;
+			door.rotation.y = angle;
+			open.play();
+			if(angle >= 90/180*Math.PI){angle = 90/180*Math.PI;
+			stat = true;
+			turn = false;
+			open.pause();
+			open.currentTime = "0";
+			}
+		}
+		if(turn && stat && angle > 0){
+			angle -= 0.01;
+			open.play();
+			if( angle < 0 ){
+				angle = 0;
+				stat = false;
+				turn = !turn;
+				open.pause();
+				close.play();
+				close.currentTime = "0";
+				open.currentTime = "0";
+			}
+			door.rotation.y = angle;	
+		}
+	}
+	else open.pause();
+	console.log(turn, stat, angle);
+	
+	requestAnimationFrame ( animate );  // timer callback
+	update();
+	render();  // display callback
+}
+
+function update()
+{
+	controls.update();
+	keyboard.update();         // this is required; this is a different keyboard callback
+	if ( keyboard.down("Z"))  // must use upper case!!
+		turn ^= 1;               
+}
+function onWindowResize()
+{
+	camera.aspect = window.innerWidth / window.innerHeight;
+	camera.updateProjectionMatrix();
+	renderer.setSize (window.innerWidth, window.innerHeight);
+}
+
+function createMesh(geom, imageFile, normal) {
+
+	if (normal) {
+
+	var t = THREE.ImageUtils.loadTexture(imageFile);
+		var m = THREE.ImageUtils.loadTexture(normal);
+		var mat2 = new THREE.MeshPhongMaterial({
+			map: t,
+			normalMap: m
+		});
+		
+		var mesh = new THREE.Mesh(geom, mat2);
+		return mesh;
+	} else {
+		var t = THREE.ImageUtils.loadTexture(imageFile);
+		var mat1 = new THREE.MeshPhongMaterial({
+			map: t
+		})
+		var mesh = new THREE.Mesh(geom, mat1);
+		return mesh;
+	}
+
+	return mesh;
+}
+
+function render()
+{
+	renderer.render (scene, camera);
+}
+</script>
+</body>
+
+</html>

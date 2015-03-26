@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+	body {
+		background-color: #fff;
+		color: #111;
+		margin: 0px;
+		overflow: hidden;
+		font-family: Monospace;
+		font-size: 20px;
+		position: absolute;
+	}
+	#info {
+		position: absolute;
+		top: 0px; width: 100%;
+		
+		padding: 5px;
+		text-align: center;
+		color: #ffff00;
+	}
+	
+	strong {color: red}
+</style>
+</head>
+
+<body>
+<div id="container"></div>
+<div id="info">
+     Web3D HW1 <br/>
+	 type <strong>z</strong> to toggle the spin and music<br/>
+	 (+ window resize)
+</div>
+
+<script src="src/js/r69/three.min.js"></script>
+<script src="src/js/OrbitControls.js"></script>
+<script src="src/js/KeyboardState.js"></script>
+<script src="src/js/dat.gui.min.js"></script>
+
+<audio id="bgm1" style="display:none">
+<source src="src/bgs/SDP.mp3" type='audio/mp3'>
+</audio>
+
+<script>
+
+var camera, scene, renderer, sun, earth1, earth2, angle = 0,
+    clock;
+var angle2 = 0;
+var	control, keyboard = new KeyboardState();
+var BGMplay = true;
+var turn = true;
+var sceneBack, cameraBack;
+	
+init();
+animate();
+
+function init() {
+    clock = new THREE.Clock();
+    scene = new THREE.Scene();
+
+	
+    camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 10000);
+    camera.position.z = 500;
+    scene.add(camera);
+
+	var sunTexture = new THREE.ImageUtils.loadTexture ('src/textures/sun_texture.jpg');
+	var sunMaterial = new THREE.MeshBasicMaterial ({map: sunTexture});
+    sun = new THREE.Mesh(new THREE.SphereGeometry(20,20,20),sunMaterial);
+	
+	var earthTexture = new THREE.ImageUtils.loadTexture ('src/textures/earth_texture.jpg');
+	var earthMaterial = new THREE.MeshBasicMaterial ({map: earthTexture});
+    earth1 = new THREE.Mesh(new THREE.SphereGeometry(10,20,20),earthMaterial);
+    
+	var earthTexture = new THREE.ImageUtils.loadTexture ('src/textures/earth_texture.jpg');
+	var earthMaterial = new THREE.MeshBasicMaterial ({map: earthTexture});
+    earth2 = new THREE.Mesh(new THREE.SphereGeometry(1),earthMaterial);
+    
+	var moonTexture = new THREE.ImageUtils.loadTexture ('src/textures/moon_texture.jpg');
+	var moonMaterial = new THREE.MeshBasicMaterial ({map: moonTexture});
+	moon = new THREE.Mesh(new THREE.SphereGeometry(3,20,20),moonMaterial);
+    earth2.add(moon);
+    sun.add(earth1);
+    sun.add(earth2);
+    scene.add(sun);
+
+    light = new THREE.PointLight(0xffffff);
+    light.position.set(100, 300, 200);
+    scene.add(light);
+
+    var light2 = new THREE.PointLight(0xffffff);
+    light2.position.set(-100, -300, -200);
+    scene.add(light2);
+
+	/////////////////////////skybox/////////////////////////////////////
+	/*var imagePrefix = "src/pic/space-";
+	var directions  = ["xpos", "xneg", "ypos", "yneg", "zpos", "zneg"];
+	var imageSuffix = ".jpg";
+	var skyGeometry = new THREE.CubeGeometry( 5000, 5000, 5000 );	
+	
+	var materialArray = [];
+	for (var i = 0; i < 6; i++)
+		materialArray.push( new THREE.MeshBasicMaterial({
+			map: THREE.ImageUtils.loadTexture( imagePrefix + directions[i] + imageSuffix ),
+			side: THREE.BackSide
+		}));
+	var skyMaterial = new THREE.MeshFaceMaterial( materialArray );
+	var skyBox = new THREE.Mesh( skyGeometry, skyMaterial );
+	scene.add( skyBox );*/
+	/////////////////////////////////////////////////////////////////////
+	///////////////////////multi-pass rendering//////////////////////////
+	sceneBack = new THREE.Scene();
+    cameraBack = new THREE.OrthographicCamera(-10, 10, 10, -10, 1, 100);
+    cameraBack.position.z = 5;
+    cameraBack.lookAt(new THREE.Vector3(0, 0, 0));
+
+    var texture = THREE.ImageUtils.loadTexture('src/pic/space-xneg.jpg');
+
+    var back = new THREE.Mesh(new THREE.PlaneGeometry(20, 20),
+    new THREE.MeshBasicMaterial({
+        map: texture,
+        transparent: true,
+        opacity: 1
+    }));
+    back.material.depthTest = false;
+    back.material.depthWrite = false;
+    sceneBack.add(back);
+	/////////////////////////////////////////////////////////////////////
+	
+    renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(0x888888);
+	
+    renderer.autoClear = false;
+	
+    control = new THREE.OrbitControls(camera, renderer.domElement);
+    document.body.appendChild(renderer.domElement);
+    window.addEventListener('resize', onWindowResize, false);
+	
+	
+}
+
+function onWindowResize() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+function toggleTurn ()
+{
+	BGMplay = !BGMplay;
+	turn = !turn;
+}
+
+function animate() {
+    requestAnimationFrame(animate);
+    render();
+	update();
+}
+
+function update ()
+{
+    control.update();
+	keyboard.update();
+	if(keyboard.down("Z"))
+		toggleTurn();
+}
+
+function render() {
+	var dt = 6*clock.getDelta()/180*3.1416;
+
+    earth1.position.set(80 * Math.cos(angle), 0, -80 * Math.sin(angle));
+    earth2.position.set(80 * Math.cos(angle), 0, -80 * Math.sin(angle));
+    moon.position.set(20 * Math.cos(angle), 0, -20 * Math.sin(angle));
+    
+	if(BGMplay){
+		bgm1.play();
+	}
+	else if(!BGMplay){
+		bgm1.pause();
+	}
+	
+	if(turn){
+		moon.rotation.y = angle;
+		earth1.rotation.y = angle*175;
+		earth2.rotation.y = angle*12;
+		angle += dt;
+	}
+	//console.log(angle,angle2);
+	renderer.clear();
+	renderer.render(sceneBack, cameraBack);
+    renderer.render(scene, camera);
+}
+
+</script>
+</body>
+
+</html>
